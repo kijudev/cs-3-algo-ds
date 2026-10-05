@@ -2,13 +2,11 @@ cmake_minimum_required(VERSION 4.0)
 
 project(cs-3-algo-ds LANGUAGES C)
 
-# Standard
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Warnings
 add_compile_options(
   -Wall
   -Wextra
@@ -54,8 +52,7 @@ if(ENABLE_MSAN)
   add_link_options(-fsanitize=memory)
 endif()
 
-# One executable per problem-*/main.c, named after its folder
-file(GLOB PROBLEM_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/problem-*/main.c)
+file(GLOB PROBLEM_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/*/main.c)
 
 foreach(source ${PROBLEM_SOURCES})
   get_filename_component(dir ${source} DIRECTORY)
