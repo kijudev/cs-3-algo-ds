@@ -74,7 +74,7 @@ int is_op(char ch) {
 }
 
 int main(void) {
-    char str[]     = "1 * 2 + 3";
+    char str[]     = "((1 + 2) * 3) + 3";
     char* out      = malloc(sizeof(str) * 2 + 1);
     size_t str_pos = 0;
     size_t out_pos = 0;
@@ -90,13 +90,21 @@ int main(void) {
             out[out_pos++] = ' ';
 
             char top = op_stack_peek(&stack);
-            if (op_precedence(top) < op_precedence(ch)) {
-                op_stack_push(&stack, ch);
-            } else if (top != '\0') {
+            if (op_precedence(top) >= op_precedence(ch)) {
                 op_stack_pop(&stack);
                 out[out_pos++] = top;
                 out[out_pos++] = ' ';
-                op_stack_push(&stack, ch);
+            }
+
+            op_stack_push(&stack, ch);
+        } else if (ch == '(') {
+            op_stack_push(&stack, '(');
+        } else if (ch == ')') {
+            char top = op_stack_pop(&stack);
+            while (top != '(' && top != '\0') {
+                out[out_pos++] = ' ';
+                out[out_pos++] = top;
+                top            = op_stack_pop(&stack);
             }
         }
 
