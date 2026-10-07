@@ -20,6 +20,7 @@
             packages = [
               llvm.clang-tools
               llvm.lldb
+              llvm.bintools # provides llvm-symbolizer for sanitizer stack traces
 
               pkgs.cmake
               pkgs.ninja
@@ -36,13 +37,13 @@
             buildInputs = [ ];
             hardeningDisable = [ "fortify" ];
             CMAKE_EXPORT_COMPILE_COMMANDS = "ON";
-          };
 
-          shellHook = ''
-            alias build-debug='cmake --preset debug; cmake --build --preset debug'
-            alias build-msan='cmake --preset msan; cmake --build --preset msan'
-            alias build-release='cmake --preset release; cmake --build preset release'
-          '';
+            shellHook = ''
+              alias build-debug='cmake --preset debug; cmake --build --preset debug'
+              alias build-msan='cmake --preset msan; cmake --build --preset msan'
+              alias build-release='cmake --preset release; cmake --build --preset release'
+            '';
+          };
         }
       );
     };
