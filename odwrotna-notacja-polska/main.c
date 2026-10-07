@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -73,24 +74,51 @@ int is_op(char ch) {
     return ch == '+' || ch == '-' || ch == '*' || ch == '/' || ch == '^';
 }
 
-int main(void) {
-    char str[]     = "((1 + 2) * 3) + 3";
-    char* out      = malloc(sizeof(str) * 2 + 1);
-    size_t str_pos = 0;
-    size_t out_pos = 0;
+/**
+ * @brief Transforms a string of infix notation arithmetic operations to postfix
+ * notation. Only none-negitve ints and basic operations are supported (+, -, *,
+ * /, ^). parens are also supported.
+ *
+ * @param str Source string.
+ * @param out Outut string.
+ * @return Size of the output string.
+ *
+ * @pre `str` must be non-null.
+ * @pre `in` must be non-null.
+ * @pre The output's string size has to be at least two times greater than the
+ * input one. This is a very conservative estimate, but the overhead is
+ * neglegible.
+ *
+ * @note This function works purely on strings, it does not serialize the data
+ * into some intermidate state. The input is not checked, thus has to be
+ * well-formed.
+ */
+size_t from_infix_to_postfix(const char* str, char* out) {
+    assert(str);
+    assert(out);
 
+    size_t str_pos   = 0;
+    size_t out_pos   = 0;
     op_stack_t stack = make_op_stack();
 
-    while (str_pos < sizeof(str)) {
+    while (str[str_pos] != '\0') {
         char ch = str[str_pos];
 
-        if (isdigit(ch)) {
+        if (isdigit((unsigned char)ch)) {
             out[out_pos++] = ch;
         } else if (is_op(ch)) {
             out[out_pos++] = ' ';
 
-            char top = op_stack_peek(&stack);
-            if (op_precedence(top) >= op_precedence(ch)) {
+            while (stack.size > 0) {
+                char top  = op_stack_peek(&stack);
+                int p_top = op_precedence(top);
+                int p_ch  = op_precedence(ch);
+
+                if (top == '(' || p_top < p_ch ||
+                    (p_top == p_ch && ch == '^')) {
+                    break;
+                }
+
                 op_stack_pop(&stack);
                 out[out_pos++] = top;
                 out[out_pos++] = ' ';
@@ -124,7 +152,16 @@ int main(void) {
     out[out_pos] = '\0';
 
     op_stack_free(&stack);
+    return out_pos;
+}
+
+int main(void) {
+    char str[] = "1 + 2 + 3 * (2 * (2 + 3))";
+    char* out  = malloc(sizeof(str) * 2 + 1);
+
+    from_infix_to_postfix(str, out);
     printf("%s", out);
 
+    free((void*)out);
     return 0;
 }
