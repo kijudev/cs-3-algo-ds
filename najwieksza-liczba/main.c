@@ -1,3 +1,8 @@
+/**
+ * @author Jakub Kijek, Informatyka, sem. 3, gr. 2
+ * @date 2026.10.07
+ */
+
 #include <float.h>
 #include <stdio.h>
 #include <stdlib.h>
