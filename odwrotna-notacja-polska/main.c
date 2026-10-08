@@ -3,8 +3,9 @@
  * @date 2026.10.07
  *
  * @brief This file contains implementations of dynamic stacks for operand
- * tokens and string, a function that transforms infix notation strings to
- * postfix notation string, and another one that does the exact opposite.
+ * tokens and string references, a function that transforms infix notation
+ * strings to postfix notation string, and another one that does the
+ * opposite.
  */
 
 #include <assert.h>
@@ -68,6 +69,7 @@ void op_stack_free(op_stack_t* stack) {
 
 // ----------------------------------------------------------------- NUM_STACK_T
 
+/// @brief Non-owning reference to a number literal in the input string.
 typedef struct {
     size_t pos;
     size_t len;
@@ -226,6 +228,22 @@ size_t from_infix_to_postfix(const char* str, char* out) {
     return out_pos;
 }
 
+/**
+ * @brief Transforms a string of postfix notation arithmetic operations to
+ * postfix notation. Only none-negitve ints and basic operations are supported
+ * (+, -, *, /, ^).
+ *
+ * @param str Source string.
+ * @param out Outut string.
+ * @return Size of the output string.
+ *
+ * @pre `str` must be non-null.
+ * @pre `in` must be non-null.
+ *
+ * @note This function works purely on strings, it does not serialize the data
+ * into some intermidate stream of tokens. The input is not checked, thus has to
+ * be well-formed.
+ */
 size_t from_postfix_to_infix(const char* str, char* out) {
     assert(str);
     assert(out);
