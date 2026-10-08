@@ -1,6 +1,6 @@
 /**
  * @author Jakub Kijek, Informatyka, sem. 3, gr. 2
- * @date 2026.10.07
+ * @date 2026.10.08
  *
  * GCD is implemented here using the Binary GCD Algorithm.
  * It's inner workings are described here:

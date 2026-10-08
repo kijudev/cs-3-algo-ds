@@ -1,6 +1,12 @@
 /**
  * @author Jakub Kijek, Informatyka, sem. 3, gr. 2
- * @date 2026.10.07
+ * @date 2026.10.08
+ *
+ * GCD is implemented here using the Binary GCD Algorithm.
+ * It's inner workings are described here:
+ * https://en.wikipedia.org/wiki/Greatest_common_divisor.
+ *
+ * LCM is implemented using GCD.
  */
 
 #include <stdint.h>
@@ -40,10 +46,12 @@ uint64_t gcd(uint64_t a, uint64_t b) {
     return (1 << d) * a;
 }
 
+uint64_t lcm(uint64_t a, uint64_t b) { return a / gcd(a, b) * b; }
+
 int main(void) {
     uint64_t a      = 48;
     uint64_t b      = 18;
-    uint64_t result = gcd(a, b);
+    uint64_t result = lcm(a, b);
 
     printf("result: %lu\n", result);
 
