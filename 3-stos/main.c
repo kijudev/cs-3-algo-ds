@@ -19,6 +19,8 @@ typedef struct {
 item_t item_make(int value) { return (item_t){value}; }
 item_t item_zero(void) { return (item_t){0}; }
 
+int item_eq(const item_t* a, const item_t* b) { return a->value == b->value; }
+
 typedef struct {
     size_t size;
     size_t capacity;

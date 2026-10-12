@@ -1,65 +1,79 @@
 /**
  * @author Jakub Kijek, Informatyka, sem. 3, gr. 2
- * @date 2026.10.08
+ * @date 2026.10.12
+ *
+ * Singly linked list is implemented using an exponential array.
+ * This way nodes of the list behave normally (pointers remain stable).
  */
 
-#include <stddef.h>
-#include <stdio.h>
+#include <assert.h>
 #include <stdlib.h>
-#include <string.h>
 
-typedef struct {
+#define BUCKET_MAX_COUNT   (32)
+#define BUCKET_SIZE_OFFSET (4)
+
+#include <stddef.h>
+
+typedef struct node_t {
     int value;
-} item_t;
-
-item_t item_make(int value) { return (item_t){value}; }
-
-typedef struct {
-    item_t item;
     struct node_t* next;
 } node_t;
 
-node_t node_make(item_t item) { return (node_t){item, NULL}; }
-
 typedef struct {
-    size_t size;
-    node_t* data;
-} bucket_t;
+    node_t* buckets[BUCKET_MAX_COUNT];
+    node_t* next_node;
+    node_t* free_node;
+    size_t bucket_count;
+} list_t;
 
-bucket_t bucket_make(size_t size) {
-    return (bucket_t){
-        .size = size,
-        .data = (node_t*)malloc(size * sizeof(item_t)),
-    };
+size_t list_calc_bucket_size(size_t idx) {
+    return 1 << (idx + BUCKET_SIZE_OFFSET);
 }
 
-void bucket_free(bucket_t* bucket) {
-    free((void*)bucket->data);
-    *bucket = (bucket_t){0};
+void list_add_bucket(list_t* list) {
+    assert(list->bucket_count <= BUCKET_MAX_COUNT);
+
+    list->buckets[list->bucket_count] =
+        malloc(list_calc_bucket_size(list->bucket_count) * sizeof(node_t));
+    ++list->bucket_count;
 }
 
-typedef struct {
-    node_t* dummy;
-    size_t count;
-    bucket_t buckets[32];
-} stack_t;
+list_t list_make(void) {
+    list_t list = {0};
 
-stack_t list_make(void) {
-    stack_t list = {0};
-
-    list.buckets[0] = bucket_make(16);
-    list.dummy      = list.buckets[0].data;
-    list.count      = 0;
+    list.buckets[0] =
+        malloc(list_calc_bucket_size(list.bucket_count++) * sizeof(node_t));
+    list.next_node = list.buckets[0];
 
     return list;
 }
 
-void list_free(stack_t* list) {
-    for (size_t i = 0; i < list->count; ++i) {
-        bucket_free(&list->buckets[i]);
+node_t* list_allocate(list_t* list) {
+    if (list->free_node) {
+        node_t* node = list->free_node;
+        node_t* next = node->next;
+
+        list->free_node = next;
+        *node           = (node_t){0};
+
+        return node;
     }
 
-    *list = (stack_t){0};
+    node_t* bucket     = list->buckets[list->bucket_count - 1];
+    size_t bucket_size = list_calc_bucket_size(list->bucket_count - 1);
+
+    if (list->next_node >= (bucket + bucket_size)) {
+        list_add_bucket(list);
+        list->next_node = list->buckets[list->bucket_count - 1];
+    }
+
+    node_t* node = list->next_node;
+    ++list->next_node;
+
+    *node = (node_t){0};
+    return node;
 }
+
+int list_remove(list_t* list, node_t* node) {}
 
 int main(void) { return 0; }

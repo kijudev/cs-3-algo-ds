@@ -26,7 +26,7 @@ uint64_t lfg(uint64_t* state, uint64_t* j, uint64_t* k) {
 }
 
 int main(void) {
-    uint64_t state[57];
+    uint64_t state[K];
     uint64_t j = J - 1;
     uint64_t k = K - 1;
 
