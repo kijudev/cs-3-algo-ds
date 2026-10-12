@@ -29,9 +29,14 @@ typedef struct bucket_t {
 typedef struct {
     node_t* head;
     node_t* next;
+    node_t* free;
     bucket_t* bucket_tail;
     bucket_t* bucket_head;
 } list_t;
+
+int item_eq(item_t a, item_t b) { return a.value == b.value; }
+
+void item_print(item_t item) { printf("item { value: %d }\n", item.value); }
 
 bucket_t bucket_make(size_t size) {
     return (bucket_t){
@@ -55,6 +60,7 @@ list_t list_make(void) {
     return (list_t){
         .head        = NULL,
         .next        = &bucket->data[0],
+        .free        = NULL,
         .bucket_tail = bucket,
         .bucket_head = bucket,
     };
@@ -74,6 +80,13 @@ void list_free(list_t* list) {
 }
 
 node_t* list_alloc(list_t* list) {
+    if (list->free) {
+        node_t* node = list->free;
+        list->free   = node->next;
+        *node        = (node_t){0};
+        return node;
+    }
+
     bucket_t* bucket = list->bucket_head;
 
     if (list->head >= (bucket->data + bucket->size)) {
@@ -120,21 +133,83 @@ node_t* list_prepend(list_t* list, item_t item) {
     return node;
 }
 
+node_t* list_find(const list_t* list, item_t item) {
+    node_t* curr = list->head;
+    while (curr) {
+        if (item_eq(item, curr->item)) {
+            return curr;
+        }
+
+        curr = curr->next;
+    }
+
+    return NULL;
+}
+
+int list_remove(list_t* list, node_t* node) {
+    if (!node || !list->head) {
+        return 0;
+    }
+
+    node_t* prev = list->head;
+    node_t* curr = prev->next;
+
+    if (prev == node) {
+        list->head = curr;
+        return 1;
+    }
+
+    while (curr) {
+        if (curr == node) {
+            prev->next = curr->next;
+            *curr      = (node_t){0};
+            curr->next = list->free;
+            list->free = curr;
+            return 1;
+        }
+
+        prev = curr;
+        curr = curr->next;
+    }
+
+    return 0;
+}
+
+int list_find_remove(list_t* list, item_t item) {
+    return list_remove(list, list_find(list, item));
+}
+
+void list_print(const list_t* list) {
+    assert(list);
+
+    node_t* curr = list->head;
+    while (curr) {
+        item_print(curr->item);
+        curr = curr->next;
+    }
+}
+
 int main(void) {
     list_t list = list_make();
 
+    printf("---- add items:\n");
     list_append(&list, (item_t){1});
-    list_append(&list, (item_t){2});
+    list_prepend(&list, (item_t){2});
     list_append(&list, (item_t){3});
-    list_append(&list, (item_t){4});
-    list_prepend(&list, (item_t){5});
-    list_prepend(&list, (item_t){6});
+    list_print(&list);
+    printf("\n");
 
-    node_t* curr = list.head;
-    while (curr) {
-        printf("item: %d\n", curr->item.value);
-        curr = curr->next;
-    }
+    printf("---- find and remove items:\n");
+    list_find_remove(&list, (item_t){2});
+    list_find_remove(&list, (item_t){1});
+    list_print(&list);
+    printf("\n");
+
+    printf("---- recycle slots of removed items:\n");
+    list_append(&list, (item_t){42});
+    list_prepend(&list, (item_t){420});
+    list_print(&list);
+    printf("\n");
 
     list_free(&list);
     return 0;
