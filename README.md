@@ -35,8 +35,8 @@ cmake --build --preset debug
 - [x] 3. Stos
 - [x] 4. Lista jednokierunkowa
 - [x] 5. Lista dwukierunkowa
-- [ ] 6. Lista cykliczna
-- [ ] 7. Lista z wartownikiem (flagą)
+- [x] 6. Lista cykliczna
+- [x] 7. Lista z wartownikiem (flagą)
 
 ### 04 - Algorytmy grafowe
 
