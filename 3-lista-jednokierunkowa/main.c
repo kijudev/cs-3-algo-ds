@@ -7,73 +7,135 @@
  */
 
 #include <assert.h>
+#include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
 
-#define BUCKET_MAX_COUNT   (32)
-#define BUCKET_SIZE_OFFSET (4)
-
-#include <stddef.h>
+typedef struct {
+    int value;
+} item_t;
 
 typedef struct node_t {
-    int value;
+    item_t item;
     struct node_t* next;
 } node_t;
 
+typedef struct bucket_t {
+    size_t size;
+    node_t* data;
+    struct bucket_t* next;
+} bucket_t;
+
 typedef struct {
-    node_t* buckets[BUCKET_MAX_COUNT];
-    node_t* next_node;
-    node_t* free_node;
-    size_t bucket_count;
+    node_t* head;
+    node_t* next;
+    bucket_t* bucket_tail;
+    bucket_t* bucket_head;
 } list_t;
 
-size_t list_calc_bucket_size(size_t idx) {
-    return 1 << (idx + BUCKET_SIZE_OFFSET);
+bucket_t bucket_make(size_t size) {
+    return (bucket_t){
+        .size = size,
+        .data = malloc(size * sizeof(node_t)),
+        .next = NULL,
+    };
 }
 
-void list_add_bucket(list_t* list) {
-    assert(list->bucket_count <= BUCKET_MAX_COUNT);
+bucket_t* bucket_new(size_t size) {
+    bucket_t* bucket = (bucket_t*)malloc(sizeof(bucket_t));
 
-    list->buckets[list->bucket_count] =
-        malloc(list_calc_bucket_size(list->bucket_count) * sizeof(node_t));
-    ++list->bucket_count;
+    *bucket = bucket_make(size);
+    return bucket;
 }
+
+void bucket_free(bucket_t* bucket) { free((void*)bucket->data); }
 
 list_t list_make(void) {
-    list_t list = {0};
-
-    list.buckets[0] =
-        malloc(list_calc_bucket_size(list.bucket_count++) * sizeof(node_t));
-    list.next_node = list.buckets[0];
-
-    return list;
+    bucket_t* bucket = bucket_new(16);
+    return (list_t){
+        .head        = NULL,
+        .next        = &bucket->data[0],
+        .bucket_tail = bucket,
+        .bucket_head = bucket,
+    };
 }
 
-node_t* list_allocate(list_t* list) {
-    if (list->free_node) {
-        node_t* node = list->free_node;
-        node_t* next = node->next;
+void list_free(list_t* list) {
+    bucket_t* curr = list->bucket_tail;
 
-        list->free_node = next;
-        *node           = (node_t){0};
-
-        return node;
+    while (curr) {
+        bucket_t* next = curr->next;
+        bucket_free(curr);
+        free((void*)curr);
+        curr = next;
     }
 
-    node_t* bucket     = list->buckets[list->bucket_count - 1];
-    size_t bucket_size = list_calc_bucket_size(list->bucket_count - 1);
+    *list = (list_t){0};
+}
 
-    if (list->next_node >= (bucket + bucket_size)) {
-        list_add_bucket(list);
-        list->next_node = list->buckets[list->bucket_count - 1];
+node_t* list_alloc(list_t* list) {
+    bucket_t* bucket = list->bucket_head;
+
+    if (list->head >= (bucket->data + bucket->size)) {
+        bucket_t* new_bucket = bucket_new(bucket->size * 2);
+
+        bucket->next      = new_bucket;
+        list->bucket_head = new_bucket;
+        list->next        = new_bucket->data;
     }
 
-    node_t* node = list->next_node;
-    ++list->next_node;
+    node_t* node = list->next++;
 
     *node = (node_t){0};
     return node;
 }
 
-int list_remove(list_t* list, node_t* node) {}
+node_t* list_append(list_t* list, item_t item) {
+    node_t* curr = list->head;
+    if (!curr) {
+        list->head       = list_alloc(list);
+        list->head->item = item;
+        return list->head;
+    }
 
-int main(void) { return 0; }
+    while (curr && curr->next) {
+        curr = curr->next;
+    }
+
+    node_t* node = list_alloc(list);
+    node->item   = item;
+    curr->next   = node;
+
+    return node;
+}
+
+node_t* list_prepend(list_t* list, item_t item) {
+    node_t* node = list_alloc(list);
+    node->item   = item;
+
+    node_t* head = list->head;
+    list->head   = node;
+    node->next   = head;
+
+    return node;
+}
+
+int main(void) {
+    list_t list = list_make();
+
+    list_append(&list, (item_t){1});
+    list_append(&list, (item_t){2});
+    list_append(&list, (item_t){3});
+    list_append(&list, (item_t){4});
+    list_prepend(&list, (item_t){5});
+    list_prepend(&list, (item_t){6});
+
+    node_t* curr = list.head;
+    while (curr) {
+        printf("item: %d\n", curr->item.value);
+        curr = curr->next;
+    }
+
+    list_free(&list);
+    return 0;
+}
