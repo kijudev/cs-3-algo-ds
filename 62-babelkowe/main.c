@@ -6,7 +6,7 @@
 #include <stddef.h>
 #include <stdio.h>
 
-void bubble_sort(int array[], int size) {
+void quick_sort(int array[], int size) {
     for (int i = 0; i < size; ++i) {
         for (int j = 0; j < size - i - 1; ++j) {
             if (array[j] > array[j + 1]) {
@@ -22,7 +22,7 @@ int main(void) {
     int array[] = {6, 2, 7, 3, 5, 4, 1};
     int size    = sizeof(array) / sizeof(int);
 
-    bubble_sort(array, size);
+    quick_sort(array, size);
 
     for (int i = 0; i < size; ++i) {
         printf("%d\n", array[i]);

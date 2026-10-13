@@ -61,7 +61,7 @@ cmake --build --preset debug
 
 - [x] 1. Wstawianie (insertsort)
 - [x] 2. Bąbelkowe (bubblesort)
-- [ ] 3. Szybkie (quicksort)
+- [x] 3. Szybkie (quicksort)
 - [ ] 4. Stogowe (heapsort)
 - [ ] 5. Przez scalanie (mergesort)
 
