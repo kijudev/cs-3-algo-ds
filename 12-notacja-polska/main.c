@@ -9,6 +9,7 @@
  */
 
 #include <assert.h>
+#include <bits/types/stack_t.h>
 #include <ctype.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -17,23 +18,20 @@
 
 // ------------------------------------------------------------------ OP_STACK_T
 
+/// @brief Dynamically allocated stack that grows by multiples of two.
 typedef struct {
     size_t size;
     size_t capacity;
     char* data;
 } op_stack_t;
 
-op_stack_t make_op_stack(void) {
-    op_stack_t stack = {
-        .size     = 0,
-        .capacity = 0,
-        .data     = NULL,
-    };
+/// @brief Return an empty stack.
+op_stack_t make_op_stack(void) { return (op_stack_t){0}; }
 
-    return stack;
-}
-
+/// @pre `stack` is non-null.
 void op_stack_push(op_stack_t* stack, char op) {
+    assert(stack);
+
     if (!stack->data) {
         stack->capacity = 2;
         stack->data     = malloc(2 * sizeof(char));
@@ -46,7 +44,10 @@ void op_stack_push(op_stack_t* stack, char op) {
     stack->data[stack->size++] = op;
 }
 
+/// @pre `stack` is non-null.
 char op_stack_pop(op_stack_t* stack) {
+    assert(stack);
+
     if (!stack->size) {
         return '\0';
     }
@@ -54,7 +55,10 @@ char op_stack_pop(op_stack_t* stack) {
     return stack->data[--stack->size];
 }
 
+/// @pre `stack` is non-null.
 char op_stack_peek(const op_stack_t* stack) {
+    assert(stack);
+
     if (!stack->size) {
         return '\0';
     }
@@ -62,7 +66,10 @@ char op_stack_peek(const op_stack_t* stack) {
     return stack->data[stack->size - 1];
 }
 
+/// @pre `stack` is non-null.
 void op_stack_free(op_stack_t* stack) {
+    assert(stack);
+
     free((void*)stack->data);
     *stack = (op_stack_t){0};
 }
