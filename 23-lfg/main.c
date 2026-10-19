@@ -3,44 +3,98 @@
  * @date 2026.10.08
  */
 
-#include <stdio.h>
-#define J (24)
-#define K (55)
-
+#include <assert.h>
+#include <inttypes.h>
+#include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
-void seed_state(uint64_t* state) {
-    for (uint64_t i = 0; i < K; ++i) {
-        state[i] = i;
+// >------------------------------------------------------------------------ lfg
+
+#define LFG_OK  (1)
+#define LFG_ERR (0)
+#define LFG_J   (24)
+#define LFG_K   (55)
+
+typedef struct {
+    uint64_t state[LFG_K];
+    size_t j;
+    size_t k;
+} lfg_t;
+
+void lfg_seed(lfg_t* lfg) {
+    if (!lfg) {
+        return;
     }
+
+    for (size_t i = 0; i < LFG_K; ++i) {
+        lfg->state[i] = i;
+    }
+
+    lfg->j = LFG_J - 1;
+    lfg->k = LFG_K - 1;
 }
 
-uint64_t lfg(uint64_t* state, uint64_t* j, uint64_t* k) {
-    uint64_t r = state[*k] + state[*j];
-    state[*k]  = r;
+lfg_t lfg_make(void) {
+    lfg_t lfg = {0};
+    lfg_seed(&lfg);
 
-    *j = (*j + 1) % J;
-    *k = (*k + 1) % K;
+    return lfg;
+}
+
+uint64_t lfg_next_unchecked(lfg_t* lfg) {
+    assert(lfg);
+
+    uint64_t r         = lfg->state[lfg->k] + lfg->state[lfg->j];
+    lfg->state[lfg->k] = r;
+
+    lfg->j = (lfg->j + 1) % LFG_K;
+    lfg->k = (lfg->k + 1) % LFG_K;
 
     return r;
 }
 
+int lfg_next(lfg_t* lfg, uint64_t* out_value) {
+    if (!lfg) {
+        *out_value = 0;
+        return LFG_ERR;
+    }
+
+    *out_value = lfg_next_unchecked(lfg);
+    return LFG_OK;
+}
+
+// >----------------------------------------------------------------------- main
+
+void test_next(void) {
+    printf("---- next\n");
+
+    lfg_t lfg = lfg_make();
+
+    for (size_t i = 0; i < 4; ++i) {
+        uint64_t r = 0;
+
+        if (lfg_next(&lfg, &r)) {
+            printf("r%zu: %" PRIu64 "\n", i + 1, r);
+        }
+    }
+    printf("\n");
+}
+
+void test_unchecked(void) {
+    printf("---- unchecked\n");
+
+    lfg_t lfg = lfg_make();
+
+    for (size_t i = 0; i < 4; ++i) {
+        printf("r%zu: %" PRIu64 "\n", i + 1, lfg_next_unchecked(&lfg));
+    }
+    printf("\n");
+}
+
 int main(void) {
-    uint64_t state[K];
-    uint64_t j = J - 1;
-    uint64_t k = K - 1;
-
-    seed_state(state);
-
-    uint64_t r1 = lfg(state, &j, &k);
-    uint64_t r2 = lfg(state, &j, &k);
-    uint64_t r3 = lfg(state, &j, &k);
-    uint64_t r4 = lfg(state, &j, &k);
-
-    printf("r1: %lu\n", r1);
-    printf("r2: %lu\n", r2);
-    printf("r3: %lu\n", r3);
-    printf("r4: %lu\n", r4);
+    test_next();
+    test_unchecked();
 
     return 0;
 }

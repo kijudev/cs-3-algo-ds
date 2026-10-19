@@ -1,28 +1,40 @@
 /**
  * @author Jakub Kijek, Informatyka, sem. 3, gr. 2
  * @date 2026.10.07
- *
- * @brief Parses the string using `strtof` step-by-step, compares the result to
- * the currenlty greatest number.
  */
 
 #include <float.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-float max_number(char str[]) {
-    char* curr = str;
-    char* next = NULL;
-    float max  = FLT_MIN;
+// >------------------------------------------------------------------ constants
+
+#define MAX_NUMBER_SEPARATOR (';')
+#define MAX_NUMBER_NONE      (-FLT_MAX)
+
+// >----------------------------------------------------------------- algorithms
+
+float max_number(const char* str) {
+    if (!str) {
+        return MAX_NUMBER_NONE;
+    }
+
+    const char* curr = str;
+    char* next       = NULL;
+    float max        = MAX_NUMBER_NONE;
 
     while (*curr != '\0') {
         float value = strtof(curr, &next);
+
+        if (next == curr) {
+            break;
+        }
 
         if (value > max) {
             max = value;
         }
 
-        if (*next == ';') {
+        if (*next == MAX_NUMBER_SEPARATOR) {
             curr = next + 1;
         } else {
             break;
@@ -32,11 +44,36 @@ float max_number(char str[]) {
     return max;
 }
 
-int main(void) {
-    char str[] = "-42.42;12.34;567.8;-9.12";
-    float max  = max_number(str);
+// >----------------------------------------------------------------------- main
 
-    printf("The max value is: %f.\n", (double)max);
+void test_mixed(void) {
+    printf("---- mixed\n");
+
+    const char str[] = "-42.42;12.34;567.8;-9.12";
+    printf("max of \"%s\": %g\n", str, (double)max_number(str));
+    printf("\n");
+}
+
+void test_all_negative(void) {
+    printf("---- all negative\n");
+
+    const char str[] = "-42.42;-12.34;-9.12";
+    printf("max of \"%s\": %g\n", str, (double)max_number(str));
+    printf("\n");
+}
+
+void test_empty(void) {
+    printf("---- empty\n");
+
+    const char str[] = "";
+    printf("max of \"%s\": %g\n", str, (double)max_number(str));
+    printf("\n");
+}
+
+int main(void) {
+    test_mixed();
+    test_all_negative();
+    test_empty();
 
     return 0;
 }

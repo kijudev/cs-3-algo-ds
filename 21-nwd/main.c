@@ -1,19 +1,21 @@
 /**
  * @author Jakub Kijek, Informatyka, sem. 3, gr. 2
  * @date 2026.10.08
- *
- * GCD is implemented here using the Binary GCD Algorithm.
- * It's inner workings are described here:
- * https://en.wikipedia.org/wiki/Greatest_common_divisor.
  */
 
+#include <assert.h>
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
 
-uint64_t gcd(uint64_t a, uint64_t b) {
+// >----------------------------------------------------------------- algorithms
+
+uint64_t gcd_unchecked(uint64_t a, uint64_t b) {
+    assert(a && b);
+
     uint64_t d = 0;
 
-    while (a % 2 == 0 && b && 2 == 0) {
+    while (a % 2 == 0 && b % 2 == 0) {
         a /= 2;
         b /= 2;
         ++d;
@@ -41,15 +43,42 @@ uint64_t gcd(uint64_t a, uint64_t b) {
         }
     }
 
-    return (1 << d) * a;
+    return a << d;
+}
+
+uint64_t gcd(uint64_t a, uint64_t b) {
+    if (!a) {
+        return b;
+    }
+
+    if (!b) {
+        return a;
+    }
+
+    return gcd_unchecked(a, b);
+}
+
+// >----------------------------------------------------------------------- main
+
+void test_gcd(void) {
+    printf("---- gcd\n");
+
+    printf("gcd(48, 18) = %" PRIu64 "\n", gcd(48, 18));
+    printf("gcd(17, 5) = %" PRIu64 "\n", gcd(17, 5));
+    printf("gcd(0, 5) = %" PRIu64 "\n", gcd(0, 5));
+    printf("\n");
+}
+
+void test_unchecked(void) {
+    printf("---- unchecked\n");
+
+    printf("gcd_unchecked(48, 18) = %" PRIu64 "\n", gcd_unchecked(48, 18));
+    printf("\n");
 }
 
 int main(void) {
-    uint64_t a      = 48;
-    uint64_t b      = 18;
-    uint64_t result = gcd(a, b);
-
-    printf("result: %lu\n", result);
+    test_gcd();
+    test_unchecked();
 
     return 0;
 }

@@ -1,22 +1,28 @@
 /**
  * @author Jakub Kijek, Informatyka, sem. 3, gr. 2
  * @date 2026.10.12
- *
- * Doubly linked list with a sentinel is implemented using an exponential array.
- * This way nodes of the list behave normally (pointers remain stable).
- * The sentinel is the first node of the pool, sentinel->next is the head and
- * sentinel->prev is the tail, so linking and unlinking need no NULL checks.
- * Shares the underlying architecture with the other list exercises.
  */
 
 #include <assert.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+// >----------------------------------------------------------------------- item
 
 typedef struct {
     int value;
 } item_t;
+
+item_t item_make(int value) { return (item_t){value}; }
+item_t item_zero(void) { return (item_t){0}; }
+
+int item_eq(const item_t* a, const item_t* b) { return a->value == b->value; }
+
+void item_print(const item_t* item) { printf("%d", item->value); }
+
+// >----------------------------------------------------------------------- node
 
 typedef struct node_t {
     item_t item;
@@ -24,11 +30,51 @@ typedef struct node_t {
     struct node_t* prev;
 } node_t;
 
+// >--------------------------------------------------------------------- bucket
+
 typedef struct bucket_t {
     size_t size;
     node_t* data;
     struct bucket_t* next;
 } bucket_t;
+
+bucket_t* bucket_new(size_t size) {
+    bucket_t* bucket = malloc(sizeof(bucket_t));
+    if (!bucket) {
+        return NULL;
+    }
+
+    node_t* data = malloc(size * sizeof(node_t));
+    if (!data) {
+        free((void*)bucket);
+        return NULL;
+    }
+
+    *bucket = (bucket_t){
+        .size = size,
+        .data = data,
+        .next = NULL,
+    };
+
+    return bucket;
+}
+
+void bucket_destroy(bucket_t* bucket) {
+    if (!bucket) {
+        return;
+    }
+
+    free((void*)bucket->data);
+    free((void*)bucket);
+}
+
+// >----------------------------------------------------------------------- list
+
+#define LIST_OK            (1)
+#define LIST_ERR           (0)
+#define LIST_BASE_CAPACITY (16)
+#define LIST_GROWTH_FACTOR (2)
+#define LIST_MAX_SIZE      (SIZE_MAX)
 
 typedef struct {
     node_t* sentinel;
@@ -39,64 +85,18 @@ typedef struct {
     bucket_t* buckets_last;
 } list_t;
 
-int item_eq(item_t a, item_t b) { return a.value == b.value; }
+list_t list_make(void) { return (list_t){0}; }
 
-void item_print(item_t item) { printf("item { value: %d }\n", item.value); }
-
-void* xmalloc(size_t size) {
-    void* ptr = malloc(size);
-    if (!ptr) {
-        fprintf(stderr, "out of memory\n");
-        exit(EXIT_FAILURE);
+void list_destroy(list_t* list) {
+    if (!list) {
+        return;
     }
 
-    return ptr;
-}
-
-bucket_t bucket_make(size_t size) {
-    return (bucket_t){
-        .size = size,
-        .data = xmalloc(size * sizeof(node_t)),
-        .next = NULL,
-    };
-}
-
-bucket_t* bucket_new(size_t size) {
-    bucket_t* bucket = (bucket_t*)xmalloc(sizeof(bucket_t));
-
-    *bucket = bucket_make(size);
-    return bucket;
-}
-
-void bucket_free(bucket_t* bucket) { free((void*)bucket->data); }
-
-list_t list_make(void) {
-    bucket_t* bucket = bucket_new(16);
-    node_t* sentinel = &bucket->data[0];
-
-    *sentinel = (node_t){
-        .item = {0},
-        .next = sentinel,
-        .prev = sentinel,
-    };
-
-    return (list_t){
-        .sentinel      = sentinel,
-        .size          = 0,
-        .next          = &bucket->data[1],
-        .free          = NULL,
-        .buckets_first = bucket,
-        .buckets_last  = bucket,
-    };
-}
-
-void list_free(list_t* list) {
     bucket_t* curr = list->buckets_first;
 
     while (curr) {
         bucket_t* next = curr->next;
-        bucket_free(curr);
-        free((void*)curr);
+        bucket_destroy(curr);
         curr = next;
     }
 
@@ -113,10 +113,29 @@ node_t* list_alloc(list_t* list) {
 
     bucket_t* bucket = list->buckets_last;
 
-    if (list->next >= (bucket->data + bucket->size)) {
-        bucket_t* new_bucket = bucket_new(bucket->size * 2);
+    if (!bucket || list->next >= (bucket->data + bucket->size)) {
+        size_t size = LIST_BASE_CAPACITY;
 
-        bucket->next       = new_bucket;
+        if (bucket) {
+            if (bucket->size >
+                LIST_MAX_SIZE / sizeof(node_t) / LIST_GROWTH_FACTOR) {
+                return NULL;
+            }
+
+            size = bucket->size * LIST_GROWTH_FACTOR;
+        }
+
+        bucket_t* new_bucket = bucket_new(size);
+        if (!new_bucket) {
+            return NULL;
+        }
+
+        if (bucket) {
+            bucket->next = new_bucket;
+        } else {
+            list->buckets_first = new_bucket;
+        }
+
         list->buckets_last = new_bucket;
         list->next         = new_bucket->data;
     }
@@ -133,70 +152,135 @@ void list_release(list_t* list, node_t* node) {
     list->free = node;
 }
 
+int list_ensure_sentinel(list_t* list) {
+    if (list->sentinel) {
+        return LIST_OK;
+    }
+
+    node_t* sentinel = list_alloc(list);
+    if (!sentinel) {
+        return LIST_ERR;
+    }
+
+    sentinel->next = sentinel;
+    sentinel->prev = sentinel;
+    list->sentinel = sentinel;
+
+    return LIST_OK;
+}
+
 node_t* list_head(const list_t* list) {
-    return list->size ? list->sentinel->next : NULL;
+    if (!list || !list->size) {
+        return NULL;
+    }
+
+    return list->sentinel->next;
 }
 
 node_t* list_tail(const list_t* list) {
-    return list->size ? list->sentinel->prev : NULL;
+    if (!list || !list->size) {
+        return NULL;
+    }
+
+    return list->sentinel->prev;
 }
 
-size_t list_size(const list_t* list) { return list->size; }
+size_t list_size(const list_t* list) {
+    if (!list) {
+        return 0;
+    }
 
-int list_is_empty(const list_t* list) { return list->size == 0; }
+    return list->size;
+}
+
+int list_is_empty(const list_t* list) {
+    if (!list) {
+        return 1;
+    }
+
+    return list->size == 0;
+}
 
 node_t* list_link(list_t* list, node_t* prev, node_t* next, item_t item) {
     node_t* node = list_alloc(list);
-    node->item   = item;
-    node->prev   = prev;
-    node->next   = next;
-    prev->next   = node;
-    next->prev   = node;
+    if (!node) {
+        return NULL;
+    }
+
+    node->item = item;
+    node->prev = prev;
+    node->next = next;
+    prev->next = node;
+    next->prev = node;
 
     list->size++;
     return node;
 }
 
 node_t* list_append(list_t* list, item_t item) {
+    if (!list || !list_ensure_sentinel(list)) {
+        return NULL;
+    }
+
     return list_link(list, list->sentinel->prev, list->sentinel, item);
 }
 
 node_t* list_prepend(list_t* list, item_t item) {
+    if (!list || !list_ensure_sentinel(list)) {
+        return NULL;
+    }
+
     return list_link(list, list->sentinel, list->sentinel->next, item);
 }
 
 node_t* list_insert_after(list_t* list, node_t* node, item_t item) {
-    assert(node);
+    if (!list || !node) {
+        return NULL;
+    }
+
     return list_link(list, node, node->next, item);
 }
 
 node_t* list_insert_before(list_t* list, node_t* node, item_t item) {
-    assert(node);
+    if (!list || !node) {
+        return NULL;
+    }
+
     return list_link(list, node->prev, node, item);
 }
 
 node_t* list_find(const list_t* list, item_t item) {
+    if (!list || !list->sentinel) {
+        return NULL;
+    }
+
     list->sentinel->item = item;
 
     node_t* curr = list->sentinel->next;
-    while (!item_eq(item, curr->item)) {
+    while (!item_eq(&item, &curr->item)) {
         curr = curr->next;
     }
 
     return curr == list->sentinel ? NULL : curr;
 }
 
-int list_remove(list_t* list, node_t* node) {
-    if (!node || node == list->sentinel) {
-        return 0;
-    }
+void list_remove_unchecked(list_t* list, node_t* node) {
+    assert(list && node && node != list->sentinel);
 
     node->prev->next = node->next;
     node->next->prev = node->prev;
 
     list->size--;
     list_release(list, node);
-    return 1;
+}
+
+int list_remove(list_t* list, node_t* node) {
+    if (!list || !node || node == list->sentinel) {
+        return LIST_ERR;
+    }
+
+    list_remove_unchecked(list, node);
+    return LIST_OK;
 }
 
 int list_find_remove(list_t* list, item_t item) {
@@ -204,14 +288,18 @@ int list_find_remove(list_t* list, item_t item) {
 }
 
 size_t list_find_remove_all(list_t* list, item_t item) {
+    if (!list || !list->sentinel) {
+        return 0;
+    }
+
     size_t removed = 0;
     node_t* curr   = list->sentinel->next;
 
     while (curr != list->sentinel) {
         node_t* next = curr->next;
 
-        if (item_eq(item, curr->item)) {
-            list_remove(list, curr);
+        if (item_eq(&item, &curr->item)) {
+            list_remove_unchecked(list, curr);
             removed++;
         }
 
@@ -221,31 +309,49 @@ size_t list_find_remove_all(list_t* list, item_t item) {
     return removed;
 }
 
-int list_pop_front(list_t* list, item_t* out) {
-    if (!list->size) {
-        return 0;
-    }
+item_t list_pop_front_unchecked(list_t* list) {
+    assert(list && list->size);
 
-    if (out) {
-        *out = list->sentinel->next->item;
-    }
+    item_t item = list->sentinel->next->item;
+    list_remove_unchecked(list, list->sentinel->next);
 
-    return list_remove(list, list->sentinel->next);
+    return item;
 }
 
-int list_pop_back(list_t* list, item_t* out) {
-    if (!list->size) {
-        return 0;
+int list_pop_front(list_t* list, item_t* out_item) {
+    if (!list || !list->size) {
+        *out_item = item_zero();
+        return LIST_ERR;
     }
 
-    if (out) {
-        *out = list->sentinel->prev->item;
+    *out_item = list_pop_front_unchecked(list);
+    return LIST_OK;
+}
+
+item_t list_pop_back_unchecked(list_t* list) {
+    assert(list && list->size);
+
+    item_t item = list->sentinel->prev->item;
+    list_remove_unchecked(list, list->sentinel->prev);
+
+    return item;
+}
+
+int list_pop_back(list_t* list, item_t* out_item) {
+    if (!list || !list->size) {
+        *out_item = item_zero();
+        return LIST_ERR;
     }
 
-    return list_remove(list, list->sentinel->prev);
+    *out_item = list_pop_back_unchecked(list);
+    return LIST_OK;
 }
 
 void list_clear(list_t* list) {
+    if (!list || !list->sentinel) {
+        return;
+    }
+
     node_t* curr = list->sentinel->next;
     while (curr != list->sentinel) {
         node_t* next = curr->next;
@@ -259,82 +365,173 @@ void list_clear(list_t* list) {
 }
 
 void list_print(const list_t* list) {
-    assert(list);
+    if (!list) {
+        return;
+    }
 
-    node_t* curr = list->sentinel->next;
-    while (curr != list->sentinel) {
-        item_print(curr->item);
+    printf("list: [");
+
+    node_t* head = list_head(list);
+    node_t* curr = head;
+    while (curr && curr != list->sentinel) {
+        if (curr != head) {
+            printf(", ");
+        }
+
+        item_print(&curr->item);
         curr = curr->next;
     }
+
+    printf("] (size: %zu)\n", list->size);
 }
 
 void list_print_reverse(const list_t* list) {
-    assert(list);
+    if (!list) {
+        return;
+    }
 
-    node_t* curr = list->sentinel->prev;
-    while (curr != list->sentinel) {
-        item_print(curr->item);
+    printf("list (reversed): [");
+
+    node_t* tail = list_tail(list);
+    node_t* curr = tail;
+    while (curr && curr != list->sentinel) {
+        if (curr != tail) {
+            printf(", ");
+        }
+
+        item_print(&curr->item);
         curr = curr->prev;
     }
+
+    printf("] (size: %zu)\n", list->size);
+}
+
+// >----------------------------------------------------------------------- main
+
+void test_insert(void) {
+    printf("---- insert\n");
+
+    list_t list = list_make();
+
+    list_append(&list, item_make(1));
+    list_prepend(&list, item_make(2));
+    list_append(&list, item_make(3));
+    list_insert_after(&list, list_head(&list), item_make(7));
+    list_insert_before(&list, list_tail(&list), item_make(8));
+    list_print(&list);
+    list_print_reverse(&list);
+
+    list_destroy(&list);
+    printf("\n");
+}
+
+void test_find_remove(void) {
+    printf("---- find remove\n");
+
+    list_t list = list_make();
+
+    for (int i = 0; i < 6; ++i) {
+        list_append(&list, item_make(i % 3));
+    }
+    list_print(&list);
+
+    list_find_remove(&list, item_make(0));
+    list_print(&list);
+
+    printf("removed: %zu\n", list_find_remove_all(&list, item_make(1)));
+    list_print(&list);
+
+    printf("found 7: %d\n", list_find(&list, item_make(7)) != NULL);
+
+    list_destroy(&list);
+    printf("\n");
+}
+
+void test_pop(void) {
+    printf("---- pop\n");
+
+    list_t list = list_make();
+    item_t item = item_zero();
+
+    for (int i = 1; i <= 3; ++i) {
+        list_append(&list, item_make(i));
+    }
+    list_print(&list);
+
+    list_pop_front(&list, &item);
+    printf("pop front: ");
+    item_print(&item);
+    printf("\n");
+
+    list_pop_back(&list, &item);
+    printf("pop back: ");
+    item_print(&item);
+    printf("\n");
+
+    list_print(&list);
+
+    list_pop_front(&list, &item);
+    printf("pop empty: %s\n", list_pop_front(&list, &item) ? "ok" : "err");
+
+    list_destroy(&list);
+    printf("\n");
+}
+
+void test_unchecked(void) {
+    printf("---- unchecked\n");
+
+    list_t list = list_make();
+    item_t item = item_zero();
+
+    for (int i = 1; i <= 4; ++i) {
+        list_append(&list, item_make(i));
+    }
+    list_print(&list);
+
+    item = list_pop_front_unchecked(&list);
+    printf("pop front: ");
+    item_print(&item);
+    printf("\n");
+
+    item = list_pop_back_unchecked(&list);
+    printf("pop back: ");
+    item_print(&item);
+    printf("\n");
+
+    list_remove_unchecked(&list, list_head(&list));
+    printf("remove head\n");
+
+    list_print(&list);
+    list_destroy(&list);
+    printf("\n");
+}
+
+void test_grow_clear(void) {
+    printf("---- grow clear\n");
+
+    list_t list = list_make();
+
+    for (int i = 0; i < 40; ++i) {
+        list_append(&list, item_make(i));
+    }
+    printf("size: %zu\n", list_size(&list));
+
+    list_clear(&list);
+    list_print(&list);
+
+    list_append(&list, item_make(42));
+    list_print(&list);
+
+    list_destroy(&list);
+    printf("\n");
 }
 
 int main(void) {
-    list_t list = list_make();
+    test_insert();
+    test_find_remove();
+    test_pop();
+    test_unchecked();
+    test_grow_clear();
 
-    printf("---- add items:\n");
-    list_append(&list, (item_t){1});
-    list_prepend(&list, (item_t){2});
-    list_append(&list, (item_t){3});
-    list_print(&list);
-    printf("size: %zu\n\n", list_size(&list));
-
-    printf("---- find and remove items:\n");
-    list_find_remove(&list, (item_t){2});
-    list_find_remove(&list, (item_t){1});
-    list_print(&list);
-    printf("size: %zu\n\n", list_size(&list));
-
-    printf("---- find missing item:\n");
-    printf("found: %d\n\n", list_find(&list, (item_t){99}) != NULL);
-
-    printf("---- recycle slots of removed items:\n");
-    list_append(&list, (item_t){42});
-    list_prepend(&list, (item_t){420});
-    list_print(&list);
-    printf("head: %d, tail: %d\n\n", list_head(&list)->item.value,
-           list_tail(&list)->item.value);
-
-    printf("---- insert after head and before tail:\n");
-    list_insert_after(&list, list_head(&list), (item_t){7});
-    list_insert_before(&list, list_tail(&list), (item_t){8});
-    list_print(&list);
-    printf("\n");
-
-    printf("---- print in reverse:\n");
-    list_print_reverse(&list);
-    printf("\n");
-
-    printf("---- grow past the first bucket and remove all 5s:\n");
-    for (int i = 0; i < 40; i++) {
-        list_append(&list, (item_t){i % 2 ? 5 : i});
-    }
-    printf("size before: %zu\n", list_size(&list));
-    printf("removed: %zu\n", list_find_remove_all(&list, (item_t){5}));
-    printf("size after: %zu\n\n", list_size(&list));
-
-    printf("---- pop front and back:\n");
-    item_t item;
-    list_pop_front(&list, &item);
-    item_print(item);
-    list_pop_back(&list, &item);
-    item_print(item);
-    printf("head: %d, tail: %d\n\n", list_head(&list)->item.value,
-           list_tail(&list)->item.value);
-
-    printf("---- clear:\n");
-    list_clear(&list);
-    printf("size: %zu, empty: %d\n", list_size(&list), list_is_empty(&list));
-
-    list_free(&list);
     return 0;
 }
