@@ -37,20 +37,20 @@ typedef struct {
     size_t size;
     size_t capacity;
     item_t* data;
-} queue_t;
+} pqueue_t;
 
-queue_t queue_make(void) { return (queue_t){0}; }
+pqueue_t queue_make(void) { return (pqueue_t){0}; }
 
-void queue_destroy(queue_t* queue) {
+void queue_destroy(pqueue_t* queue) {
     if (!queue) {
         return;
     }
 
     free((void*)queue->data);
-    *queue = (queue_t){0};
+    *queue = (pqueue_t){0};
 }
 
-int queue_is_full(const queue_t* queue) {
+int queue_is_full(const pqueue_t* queue) {
     if (!queue) {
         return 0;
     }
@@ -58,7 +58,7 @@ int queue_is_full(const queue_t* queue) {
     return queue->size == queue->capacity;
 }
 
-int queue_is_empty(const queue_t* queue) {
+int queue_is_empty(const pqueue_t* queue) {
     if (!queue) {
         return 1;
     }
@@ -66,7 +66,7 @@ int queue_is_empty(const queue_t* queue) {
     return queue->size == 0;
 }
 
-size_t queue_size(const queue_t* queue) {
+size_t queue_size(const pqueue_t* queue) {
     if (!queue) {
         return 0;
     }
@@ -74,7 +74,7 @@ size_t queue_size(const queue_t* queue) {
     return queue->size;
 }
 
-int queue_ensure_capacity(queue_t* queue, size_t count) {
+int queue_ensure_capacity(pqueue_t* queue, size_t count) {
     if (!queue) {
         return QUEUE_ERR;
     }
@@ -118,7 +118,7 @@ int queue_ensure_capacity(queue_t* queue, size_t count) {
     return QUEUE_OK;
 }
 
-void queue_enqueue_unchecked(queue_t* queue, item_t item) {
+void queue_enqueue_unchecked(pqueue_t* queue, item_t item) {
     assert(queue && queue->size < queue->capacity);
 
     size_t idx       = (queue->tail + queue->size) & (queue->capacity - 1);
@@ -126,7 +126,7 @@ void queue_enqueue_unchecked(queue_t* queue, item_t item) {
     ++queue->size;
 }
 
-int queue_enqueue(queue_t* queue, item_t item) {
+int queue_enqueue(pqueue_t* queue, item_t item) {
     if (!queue || !queue_ensure_capacity(queue, 1)) {
         return QUEUE_ERR;
     }
@@ -135,13 +135,13 @@ int queue_enqueue(queue_t* queue, item_t item) {
     return QUEUE_OK;
 }
 
-item_t queue_peek_unchecked(const queue_t* queue) {
+item_t queue_peek_unchecked(const pqueue_t* queue) {
     assert(queue && queue->size);
 
     return queue->data[queue->tail];
 }
 
-int queue_peek(const queue_t* queue, item_t* out_item) {
+int queue_peek(const pqueue_t* queue, item_t* out_item) {
     if (!queue || !queue->size) {
         *out_item = item_zero();
         return QUEUE_ERR;
@@ -151,7 +151,7 @@ int queue_peek(const queue_t* queue, item_t* out_item) {
     return QUEUE_OK;
 }
 
-item_t queue_dequeue_unchecked(queue_t* queue) {
+item_t queue_dequeue_unchecked(pqueue_t* queue) {
     assert(queue && queue->size);
 
     item_t item = queue->data[queue->tail];
@@ -161,7 +161,7 @@ item_t queue_dequeue_unchecked(queue_t* queue) {
     return item;
 }
 
-int queue_dequeue(queue_t* queue, item_t* out_item) {
+int queue_dequeue(pqueue_t* queue, item_t* out_item) {
     if (!queue || !queue->size) {
         *out_item = item_zero();
         return QUEUE_ERR;
@@ -171,7 +171,7 @@ int queue_dequeue(queue_t* queue, item_t* out_item) {
     return QUEUE_OK;
 }
 
-void queue_print(const queue_t* queue) {
+void queue_print(const pqueue_t* queue) {
     if (!queue) {
         return;
     }
@@ -192,8 +192,8 @@ void queue_print(const queue_t* queue) {
 void test_enqueue_dequeue(void) {
     printf("---- enqueue dequeue\n");
 
-    queue_t queue = queue_make();
-    item_t item   = item_zero();
+    pqueue_t queue = queue_make();
+    item_t item    = item_zero();
 
     queue_enqueue(&queue, item_make(10));
     queue_enqueue(&queue, item_make(20));
@@ -218,8 +218,8 @@ void test_enqueue_dequeue(void) {
 void test_empty(void) {
     printf("---- empty\n");
 
-    queue_t queue = queue_make();
-    item_t item   = item_zero();
+    pqueue_t queue = queue_make();
+    item_t item    = item_zero();
 
     queue_print(&queue);
     printf("peek: %s\n", queue_peek(&queue, &item) ? "ok" : "err");
@@ -232,8 +232,8 @@ void test_empty(void) {
 void test_unchecked(void) {
     printf("---- unchecked\n");
 
-    queue_t queue = queue_make();
-    item_t item   = item_zero();
+    pqueue_t queue = queue_make();
+    item_t item    = item_zero();
 
     for (int i = 0; i < 4; ++i) {
         queue_enqueue(&queue, item_make(i));
